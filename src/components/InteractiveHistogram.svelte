@@ -21,7 +21,7 @@
   let histogramContainer;
   let width = 800;
   let height = 400;
-  let margin = { top: 48, right: 20, bottom: 30, left: 40 };
+  let margin = { top: 48, right: 20, bottom: 30, left: 90 };
   let dotRadius = 4;
   let hoveredValue = $state(null);
   let hasResponded = $state(false);
@@ -151,6 +151,30 @@
     });
   }
 
+  let selectEl;
+  let measureSpanEl;
+
+  // Update select width to match selected option
+  function updateSelectWidth() {
+    if (selectEl && measureSpanEl) {
+      // Set the span's text to the selected option
+      const selectedOption = comparisonGroups.find(g => g.value === selectedComparisonGroup)?.label.toLowerCase() || '';
+      measureSpanEl.textContent = selectedOption;
+      // Get the span's width
+      const spanWidth = measureSpanEl.offsetWidth;
+      // Add extra for dropdown arrow and padding
+      selectEl.style.width = (spanWidth + 36) + 'px';
+    }
+  }
+
+  $effect(() => {
+    updateSelectWidth();
+  });
+
+  onMount(() => {
+    updateSelectWidth();
+  });
+
   // Load existing responses and check if user has already responded
   onMount(async () => {
     try {
@@ -202,17 +226,28 @@
     // Clear previous content
     d3.select(histogramContainer).selectAll("*").remove();
 
+    // Add extra bottom margin for x-axis labels
+    const extraBottom = 48;
     const svg = d3.select(histogramContainer)
       .append("svg")
-      .attr("width", width)
-      .attr("height", height);
+      .attr("viewBox", `0 0 ${width} ${height + extraBottom}`)
+      .attr("width", "100%")
+      .attr("height", height + extraBottom);
 
     const x = d3.scaleLinear()
       .domain([0, 100])
       .range([margin.left, width - margin.right]);
 
+    // Calculate histogram bin counts for y-axis
+    let valueGroups = d3.group(responses, d => d);
+    let maxCount = 0;
+    valueGroups.forEach((responses) => {
+      maxCount = Math.max(maxCount, responses.length);
+    });
+    if (maxCount === 0) maxCount = 1;
+
     const y = d3.scaleLinear()
-      .domain([0, 100])
+      .domain([0, maxCount])
       .range([height - margin.bottom, margin.top]);
 
     // Add star icon group
@@ -325,14 +360,8 @@
     // Show data if user has voted OR if there are responses
     if (hasVoted) {
       // Group responses by value and calculate counts
-      const valueGroups = d3.group(responses, d => d);
+      valueGroups = d3.group(responses, d => d);
       const data = [];
-      
-      // Calculate maximum count for y-axis scaling
-      let maxCount = 0;
-      valueGroups.forEach((responses) => {
-        maxCount = Math.max(maxCount, responses.length);
-      });
       
       // Create data array for bars
       valueGroups.forEach((responses, value) => {
@@ -343,14 +372,11 @@
         });
       });
 
-      // Update y scale domain based on maxCount
-      y.domain([0, maxCount]);
-
       // Draw bars
-      const bars = svg.selectAll("rect")
+      svg.selectAll("rect")
         .data(data)
         .join("rect")
-        .attr("x", d => x(d.value) - 2) // Center the bar on the value
+        .attr("x", d => x(d.value) - 2)
         .attr("y", d => y(d.count))
         .attr("width", 4)
         .attr("height", d => height - margin.bottom - y(d.count))
@@ -369,11 +395,11 @@
 
       // Add hover events for highlighting
       if (canVote) {
-        bars
+        svg.selectAll("rect")
           .on("mouseover", function(event, d) {
             if (!d.isUserVote) {
               hoveredValue = d.value;
-              bars
+              svg.selectAll("rect")
                 .transition()
                 .duration(200)
                 .attr("fill", bar => {
@@ -388,7 +414,7 @@
           })
           .on("mouseout", function() {
             hoveredValue = null;
-            bars
+            svg.selectAll("rect")
               .transition()
               .duration(200)
               .attr("fill", bar => bar.isUserVote ? "#ff4444" : "#4a90e2")
@@ -396,13 +422,11 @@
           });
       }
 
-      // Draw normal distribution curve
+      // Draw normal distribution curve (scale to count-based y-axis)
       if (responses.length > 1) {
         const mean = d3.mean(responses);
         const stdDev = d3.deviation(responses);
         const normalData = normalDistribution(mean, stdDev, 100);
-
-        // Scale the normal distribution to match our data
         const maxDensity = d3.max(normalData, d => d.y);
         const scaleFactor = maxCount / maxDensity;
 
@@ -411,7 +435,6 @@
           .y(d => y(d.y * scaleFactor))
           .curve(d3.curveBasis);
 
-        // Add area under the curve
         const area = d3.area()
           .x(d => x(d.x))
           .y0(height - margin.bottom)
@@ -432,29 +455,52 @@
           .attr("opacity", 0.5)
           .attr("d", line);
       }
-
-      // Show y-axis only after voting
-      svg.append("g")
-        .attr("transform", `translate(${margin.left},0)`)
-        .call(d3.axisLeft(y));
     }
 
-    // Add axes
+    // X axis (unchanged) -- always draw this
     const xAxis = d3.axisBottom(x)
       .tickValues([0, 50, 100])
       .tickFormat((d, i) => {
         if (axisLabels && axisLabels.length === 3) {
-          return axisLabels[i] ?? d;
+          return axisLabels[i] ?? Math.round(d);
         }
         if (i === 0) return "the worst";
         if (i === 1) return "average";
         if (i === 2) return "the best";
-        return d;
+        return Math.round(d);
       });
 
     svg.append("g")
-      .attr("transform", `translate(0,${height - margin.bottom})`)
-      .call(xAxis);
+      .attr("transform", `translate(0,${height - margin.bottom + 24})`)
+      .call(xAxis)
+      .call(g => g.selectAll("text")
+        .style("font-size", "1.1rem")
+        .style("font-weight", "600")
+        .attr("dy", "1.5em")
+        .attr("text-anchor", (d, i) => i === 0 ? "start" : i === 2 ? "end" : "middle")
+        .attr("x", (d, i) => i === 0 ? 8 : i === 2 ? -8 : 0)
+      );
+
+    // Y axis (only label the top tick)
+    if (hasVoted && responses.length > 0) {
+      const yAxis = d3.axisLeft(y)
+        .ticks(5)
+        .tickFormat((d, i, arr) => {
+          if (d === maxCount) {
+            return `${maxCount} responses`;
+          }
+          return '';
+        });
+
+      svg.append("g")
+        .attr("transform", `translate(${margin.left},0)`)
+        .call(yAxis)
+        .call(g => g.selectAll("text")
+          .style("font-size", "1.1rem")
+          .style("font-weight", "600")
+          .attr("dx", "0.5em")
+        );
+    }
 
     // Draw mean, midpoint, and distance annotations only after voting
     if (hasVoted) {
@@ -523,215 +569,278 @@
 </script>
 
 <div class="histogram-container">
-  
-    <h3>{question} 
-      {#if !isExample} <span class="question-number">(question {questionNumber}/{totalQuestions})</span> {/if}
-      <div class="comparison-group">
-        compared to 
-        <select 
-          bind:value={selectedComparisonGroup}
-          class="comparison-select"
-        >
-          {#each comparisonGroups as group}
-            <option value={group.value}>{group.label}</option>
-          {/each}
-        </select>
-      </div>
-    </h3>
-    {#if isExample}
-      <div class="subhead">
-        {#if hasVoted}
-          You already voted ({userVote}/100)
-        {:else}
-          Click on the line to rate yourself
-        {/if}
-      </div>
-    {/if}
- 
-  <div class="content-wrapper">
-    <div class="chart-wrapper">
-  <div
-    bind:this={histogramContainer}
-    class="histogram"
-    style="width: {width}px; height: {height}px;"
-  ></div>
-    </div>
-
-    {#if hasVoted}
-      <div class="stats-panel" transition:fade>
-        <h4>Statistics</h4>
-        <div class="stats-grid">
-          <div class="stat-item">
-            <span class="stat-label">Responses:</span>
-            <span class="stat-value">{responseCount}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">Mean:</span>
-            <span class="stat-value">{meanValue?.toFixed(1) ?? '0.0'}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">Median:</span>
-            <span class="stat-value">{medianValue?.toFixed(1) ?? '0.0'}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">Std Dev:</span>
-            <span class="stat-value">{stdDevValue?.toFixed(1) ?? '0.0'}</span>
-          </div>
-          {#if userVote !== null}
-            <div class="stat-item user-stat">
-              <span class="stat-label">Your percentile:</span>
-              <span class="stat-value">{userPercentileValue?.toFixed(1) ?? '0.0'}%</span>
-            </div>
-            <div class="percentile-description">
-              {percentileDescription}
-            </div>
-          {/if}
-          <div class="mean-vs-midpoint-description">{meanVsMidpointDescription}</div>
-        </div>
-      </div>
+  <div class="question-row">
+    <span class="question-intro">Compared to</span>
+    <span class="select-measure" bind:this={measureSpanEl} aria-hidden="true"></span>
+    <select 
+      bind:value={selectedComparisonGroup}
+      class="comparison-select"
+      bind:this={selectEl}
+      on:change={updateSelectWidth}
+    >
+      {#each comparisonGroups as group}
+        <option value={group.value}>{group.label.toLowerCase()}</option>
+      {/each}
+    </select>,
+    <span class="question-main">{question.charAt(0).toLowerCase() + question.slice(1)}</span>
+    {#if !isExample}
+      <span class="question-number">(question {questionNumber}/{totalQuestions})</span>
     {/if}
   </div>
+
+  {#if isExample}
+    <div class="subhead">
+      {#if hasVoted}
+        You already voted ({userVote}/100)
+      {:else}
+        Click on the line to rate yourself
+      {/if}
+    </div>
+  {/if}
+
+  <div class="content-wrapper">
+    <div class="chart-wrapper">
+      {#if !hasVoted}
+        <div class="chart-message">Click anywhere on the line below to rate yourself and see how you compare!</div>
+      {/if}
+      <div
+        bind:this={histogramContainer}
+        class="histogram"
+        style="width: 100%; height: {height}px;"
+      ></div>
+    </div>
+  </div>
+
+  {#if hasVoted}
+    <div class="stats-panel" transition:fade>
+      <p class="stats-summary">
+        Of the <strong>{responseCount}</strong> responses to this question, the average answer was <strong>{meanValue?.toFixed(1) ?? '0.0'}</strong>, meaning that {meanVsMidpointDescription.toLowerCase()} 
+        {#if userVote !== null}
+          You gave yourself a score of <strong>{userVote}</strong>, which is in the <strong>{userPercentileValue?.toFixed(1) ?? '0.0'}%</strong> percentile for all responses.
+        {/if}
+      </p>
+    </div>
+  {/if}
 </div>
 
 <style>
+  :global(.histogram-container),
+  :global(.content-wrapper),
+  :global(.chart-wrapper),
+  :global(.stats-panel) {
+    box-sizing: border-box;
+  }
+
   .histogram-container {
-    font-family: system-ui, -apple-system, sans-serif;
-    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+    padding: 2.5rem;
+    margin-bottom: 2.5rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid #e2e8f0;
+    overflow: visible;
+  }
+
+  .histogram-container:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+  }
+
+  .question-row {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-
-  .content-wrapper {
-    display: flex;
-    gap: 2rem;
-    align-items: flex-start;
     justify-content: center;
-    margin-top: 20px;
-    width: 100%;
-    max-width: 1140px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  .chart-wrapper {
-    width: 800px;
-    flex-shrink: 0;
-  }
-
-  .histogram {
-    display: flex;
-    justify-content: center;
-    width: 100%;
-  }
-
-  h3 {
-    text-align: center;
-    color: #333;
-    margin-bottom: 1rem;
-    width: 100%;
-  }
-
-  h4 {
-    margin: 0 0 1rem 0;
-    color: #333;
-    font-size: 1.1em;
-  }
-
-  .question-number {
-    font-size: 0.9em;
-    color: #666;
-    font-weight: normal;
-  }
-
-  .stats-panel {
-    padding: 1.5rem;
-    background: #f5f5f5;
-    border-radius: 8px;
-    width: 300px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    flex-shrink: 0;
-  }
-
-  .stats-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .stat-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.5rem;
-  }
-
-  .stat-label {
-    color: #666;
-    font-size: 0.9em;
-  }
-
-  .stat-value {
+    gap: 0.5rem;
+    font-family: 'National', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 1.2rem;
     font-weight: 500;
-    color: #333;
-  }
-
-  .user-stat {
-    background: #fff;
-    border-radius: 4px;
-    margin-top: 0.5rem;
-    border: 1px solid #ddd;
-  }
-
-  .percentile-description {
-    margin-top: 1rem;
-    padding: 0.75rem;
-    background: #fff;
-    border-radius: 4px;
-    border: 1px solid #ddd;
-    font-size: 0.9em;
-    color: #333;
-    text-align: center;
+    color: #1a202c;
+    margin-bottom: 1.5rem;
     line-height: 1.4;
+    text-align: center;
+    letter-spacing: -0.01em;
+    flex-wrap: wrap;
+  }
+  .question-intro {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 1.1rem;
+    margin-right: 0.25rem;
+  }
+  .select-measure {
+    position: absolute;
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
+    white-space: pre;
+    font-size: 1.1rem;
+    font-family: inherit;
+    font-weight: 400;
+    padding: 0.25rem 0.75rem;
+    border: 2px solid #cbd5e0;
+    box-sizing: border-box;
+  }
+  .comparison-select {
+    display: inline-block;
+    margin: 0 0.25rem;
+    padding: 0.25rem 0.75rem 0.25rem 0.75rem;
+    border: 2px solid #cbd5e0;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    color: #1a202c;
+    background: white;
+    transition: all 0.2s;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%232d3748' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 1.1rem;
+    width: auto;
+    min-width: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    font-family: inherit;
+  }
+  .comparison-select option {
+    text-transform: lowercase;
+  }
+  .question-main {
+    font-size: 1.1rem;
+    color: #1a202c;
+    font-weight: 500;
+    margin-left: 0.25rem;
+  }
+  .question-number {
+    font-size: 0.95rem;
+    color: #4a5568;
+    font-weight: 400;
+    opacity: 0.8;
+    margin-left: 0.5rem;
   }
 
   .subhead {
-    font-size: 1.1em;
-    color: #666;
+    text-align: center;
+    color: #2d3748;
+    margin-bottom: 2rem;
+    font-size: 1.2rem;
+    font-family: 'National', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-weight: 500;
+  }
+
+  .content-wrapper {
+    display: block;
+    width: 100%;
+    margin-top: 1.5rem;
+    background: none;
+    box-sizing: border-box;
+    overflow: visible;
+  }
+
+  .chart-wrapper {
+    width: 100%;
+    background: none;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    border: none;
+    display: block;
+    overflow: visible;
+  }
+
+  .histogram {
+    width: 100%;
+    min-width: 250px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: none;
+    height: auto;
+    min-height: 300px;
+    display: block;
     margin-bottom: 1.5rem;
+  }
+
+  .stats-panel {
+    width: 100%;
+    max-width: 100vw;
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 1.75rem;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e2e8f0;
+    box-sizing: border-box;
+    overflow: visible;
+    display: block;
+    margin: 2.5rem auto 1.5rem auto;
+    clear: both;
+  }
+
+  .stats-summary {
+    font-size: 1.08rem;
+    color: #1a202c;
+    font-family: 'National', -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.7;
+    margin: 0;
+    text-align: left;
+  }
+
+  .stats-summary strong {
+    font-weight: 700;
+    color: #357abd;
+  }
+
+  @media (max-width: 1024px) {
+    .content-wrapper {
+      flex-direction: column;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    .stats-panel {
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .chart-wrapper {
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .histogram-container {
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .question-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .comparison-select {
+      width: 100%;
+      margin: 0.75rem 0 0 0;
+    }
+
+    .stats-panel {
+      padding: 1.25rem;
+    }
+
+    .stat-item {
+      padding: 0.75rem 1rem;
+    }
+  }
+
+  .chart-message {
+    width: 100%;
     text-align: center;
-  }
-
-  .mean-vs-midpoint-description {
-    margin-top: 1rem;
-    font-size: 0.95em;
-    color: #555;
-    text-align: center;
-    line-height: 1.4;
-  }
-
-  .comparison-group {
-    display: inline-block;
-    margin-left: 0.5rem;
-    font-size: 0.9em;
-    color: #666;
-  }
-
-  .comparison-select {
-    margin-left: 0.25rem;
-    padding: 0.25rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    background: white;
-    font-size: 0.9em;
-    color: #333;
-  }
-
-  .comparison-select:focus {
-    outline: none;
-    border-color: #4a90e2;
+    font-size: 1.15rem;
+    color: #357abd;
+    margin-bottom: 0.5rem;
+    font-family: 'National', -apple-system, BlinkMacSystemFont, sans-serif;
   }
 </style> 

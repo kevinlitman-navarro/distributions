@@ -83,58 +83,113 @@
   .demographic-survey {
     max-width: 600px;
     margin: 2rem auto;
-    padding: 2rem;
+    padding: 2.5rem;
     background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s;
+  }
+
+  .demographic-survey:hover {
+    transform: translateY(-2px);
   }
 
   h2 {
     text-align: center;
-    color: #333;
+    color: #2c3e50;
     margin-bottom: 2rem;
+    font-size: 1.8rem;
+    font-weight: 600;
+    letter-spacing: -0.5px;
   }
 
   .form-group {
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
   }
 
   label {
     display: block;
-    margin-bottom: 0.5rem;
-    color: #555;
+    margin-bottom: 0.75rem;
+    color: #4a5568;
     font-weight: 500;
+    font-size: 1.1rem;
   }
 
   select {
     width: 100%;
-    padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 1rem;
-    color: #333;
+    padding: 1rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    color: #2d3748;
     background: white;
+    transition: all 0.2s;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%234a5568' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1.5rem;
+  }
+
+  select:hover {
+    border-color: #4a90e2;
   }
 
   select:focus {
     outline: none;
     border-color: #4a90e2;
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
   }
 
   button {
     width: 100%;
-    padding: 1rem;
+    padding: 1.25rem;
     background: #4a90e2;
     color: white;
     border: none;
-    border-radius: 4px;
-    font-size: 1rem;
-    font-weight: 500;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
   button:hover {
     background: #357abd;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  button:active {
+    transform: translateY(0);
+    box-shadow: none;
+  }
+
+  @media (max-width: 768px) {
+    .demographic-survey {
+      padding: 1.5rem;
+      margin: 1rem;
+    }
+
+    h2 {
+      font-size: 1.5rem;
+    }
+
+    label {
+      font-size: 1rem;
+    }
+
+    select {
+      padding: 0.75rem;
+      font-size: 1rem;
+    }
+
+    button {
+      padding: 1rem;
+      font-size: 1rem;
+    }
   }
 </style> 

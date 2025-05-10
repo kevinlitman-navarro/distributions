@@ -161,27 +161,59 @@
 		max-width: 1200px;
 		margin: 0 auto;
 		padding: 2rem;
+		background: linear-gradient(to bottom, #f8f9fa, #ffffff);
+		min-height: 100vh;
 	}
 
 	h1 {
 		text-align: center;
 		margin-bottom: 2rem;
+		font-size: 2.5rem;
+		color: #2c3e50;
+		font-weight: 700;
+		letter-spacing: -0.5px;
 	}
 
 	.context {
 		max-width: 800px;
 		margin: 0 auto 4rem auto;
 		text-align: center;
-		color: #444;
-		line-height: 1.6;
+		color: #4a5568;
+		line-height: 1.8;
+		font-size: 1.1rem;
 	}
 
 	.context p {
-		margin-bottom: 1rem;
+		margin-bottom: 1.5rem;
 	}
 
 	.context p:last-child {
 		margin-bottom: 0;
+	}
+
+	.context a {
+		color: #4a90e2;
+		text-decoration: none;
+		font-weight: 500;
+		transition: color 0.2s;
+	}
+
+	.context a:hover {
+		color: #357abd;
+		text-decoration: underline;
+	}
+
+	.example-histogram {
+		margin: 3rem 0;
+		padding: 2rem;
+		background: white;
+		border-radius: 12px;
+		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+		transition: transform 0.2s;
+	}
+
+	.example-histogram:hover {
+		transform: translateY(-2px);
 	}
 
 	.histograms {
@@ -197,38 +229,93 @@
 	.demographic-section {
 		max-width: 800px;
 		margin: 0 auto;
-		padding: 2rem;
-		background: #f8f9fa;
-		border-radius: 8px;
+		padding: 3rem;
+		background: white;
+		border-radius: 12px;
+		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+		transition: transform 0.2s;
+	}
+
+	.demographic-section:hover {
+		transform: translateY(-2px);
 	}
 
 	.demographic-section h2 {
 		text-align: center;
-		color: #333;
+		color: #2c3e50;
 		margin-bottom: 1rem;
+		font-size: 1.8rem;
+		font-weight: 600;
 	}
 
 	.demographic-intro {
 		text-align: center;
-		color: #666;
+		color: #4a5568;
 		margin-bottom: 2rem;
+		font-size: 1.1rem;
+		line-height: 1.6;
 	}
 
 	.completion-message {
 		text-align: center;
-		padding: 3rem;
+		padding: 4rem;
 		background: white;
-		border-radius: 8px;
-		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		border-radius: 12px;
+		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+		margin: 2rem auto;
+		max-width: 600px;
+		animation: fadeIn 0.5s ease-out;
 	}
 
 	.completion-message h2 {
-		color: #333;
+		color: #2c3e50;
 		margin-bottom: 1rem;
+		font-size: 1.8rem;
+		font-weight: 600;
 	}
 
 	.completion-message p {
-		color: #666;
+		color: #4a5568;
+		font-size: 1.1rem;
+	}
+
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+			transform: translateY(20px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@media (max-width: 768px) {
+		.container {
+			padding: 1rem;
+		}
+
+		h1 {
+			font-size: 2rem;
+		}
+
+		.context {
+			font-size: 1rem;
+			margin-bottom: 2rem;
+		}
+
+		.example-histogram {
+			margin: 2rem 0;
+			padding: 1rem;
+		}
+
+		.demographic-section {
+			padding: 2rem;
+		}
+
+		.completion-message {
+			padding: 2rem;
+		}
 	}
 </style>
 

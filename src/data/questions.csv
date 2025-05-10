@@ -1,0 +1,27 @@
+question,low label,average label,high label,include,datafilename,notes,comparison_group
+How good of a driver are you?,im dangerous,not texting all the time,goated,TRUE,driver,going to start with this one as they canonical example and way into the story,friends
+"How attractive are you, compared to everyone in the world?",big time uggo,normal,carved by michelangelo himself,TRUE,attractive,,world
+"How much money do you make, relative to your friends?",not much,idk average,swimming in gold,TRUE,earnings,,friends
+How good was your mom at parenting?,worst mom,average mom,best mom,TRUE,mom,,friends
+How good are you at talking to strangers?,catastrophically awkward,alright,utterly charismatic,TRUE,strangers,,friends
+"How well do you know yourself, compared to your peers?",living an unexamined life,"i mean, i go to therapy",enlightened,TRUE,knowledge,,friends
+Are you a fast runner?,lol no,neither fast nor slow,yeah i'll race you,TRUE,running,,friends
+Are you smart?,wut,100IQ,"sorry, but yeah",TRUE,smart,,friends
+Are you humble?,christlike,as much as the next digital nomad,"does the word ""ubsermensch"" mean nothing to you",TRUE,humble,,friends
+How tall are you?,shorter than average,average height,taller than average,TRUE,height,,country
+Are you a good cook?,is doordash an instrument,average homecook,culinary genius,TRUE,cook,,friends
+How romantic are you?,less romantic,as romantic as the average bear,more romantic,TRUE,romantic,,friends
+How good are you at managing your money?,not good doc,I manage the average,its an all you can buffet and my name is warren,TRUE,money,,friends
+How good are you at estimating your abilities?,is this a trick,decidely average,this must be a trick,TRUE,ability,,friends
+"How wealthy are you, compared to your fellow countrymen?",broker than most,averagely wealthy,richer than most,TRUE,wealthcountry,,country
+"How wealthy are you, compared to everyone in the world?",broker than most,averagely wealthy,richer than most,TRUE,wealthworld,,world
+How happy are you?,:(,of average happiness,:)))))))))))),TRUE,happy,,friends
+How punctual are you?,never on time,"most of the time, on time",always on time or early,TRUE,punctual,i wouldnt be shocked if everyone thinks they are more late on average than other people bc there is an epidemic of being late,friends
+How funny are you?,not very funny,normal funny,very funny,TRUE,funny,,friends
+How's your attention span?,completely shot,average,impeccable,TRUE,attention,,friends
+How vivid is your visual imagery compared to others?,less vivid than most people's,average,more vivid than most people's,TRUE,imagery,,friends
+How prominent is your internal monologue compared to others?,less prominent,probably as prominent as others',more prominent,TRUE,monologue,,friends
+How is your pain tolerance?,lower than most,average,higher than most,TRUE,pain,,friends
+How does your sex drive compare to people the same sex as you?,lower,average,higher,TRUE,sex,,friends
+How does your work ethic compare to others?,lower,average,higher,TRUE,work,,friends
+How confident are you?,less confident,average,more confident,TRUE,confident,,friends

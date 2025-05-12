@@ -20,8 +20,8 @@
   let responses = $state([]);
   let histogramContainer;
   let width = 800;
-  let height = 400;
-  let margin = { top: 48, right: 20, bottom: 30, left: 90 };
+  let height = 300;
+  let margin = { top: 48, right: 20, bottom: 70, left: 120 };
   let dotRadius = 4;
   let hoveredValue = $state(null);
   let hasResponded = $state(false);
@@ -230,13 +230,17 @@
     const extraBottom = 48;
     const svg = d3.select(histogramContainer)
       .append("svg")
-      .attr("viewBox", `0 0 ${width} ${height + extraBottom}`)
-      .attr("width", "100%")
-      .attr("height", height + extraBottom);
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+      .attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`);
 
+    // Set up scales
     const x = d3.scaleLinear()
       .domain([0, 100])
-      .range([margin.left, width - margin.right]);
+      .range([0, width]);
+    const y = d3.scaleLinear()
+      .domain([0, responseCount])
+      .range([height, 0]);
 
     // Calculate histogram bin counts for y-axis
     let valueGroups = d3.group(responses, d => d);
@@ -246,46 +250,83 @@
     });
     if (maxCount === 0) maxCount = 1;
 
-    const y = d3.scaleLinear()
-      .domain([0, maxCount])
-      .range([height - margin.bottom, margin.top]);
-
-    // Add star icon group
-    const starGroup = svg.append("g")
+    // Add hover indicator group
+    const indicatorGroup = svg.append("g")
       .attr("opacity", 0)
       .style("pointer-events", "none");
-    
-    // Add "You are here" label
-    starGroup.append("text")
-      .attr("text-anchor", "middle")
-      .attr("y", -25)
-      .style("font-size", "12px")
-      .style("fill", "#ff4444")
-      .text("You are here");
-    
-    // Add star icon with corrected path and centered position
-    starGroup.append("path")
-      .attr("d", "M0,-8 L2.5,0 L5,-2.5 L7.5,0 L10,-8 L5,2.5 L0,-8")
-      .attr("fill", "#ff4444")
-      .attr("transform", "translate(0, 0)");
 
-    // Add mouse move handler for hover dot
+    // Add label above the icon
+    indicatorGroup.append("text")
+      .attr("text-anchor", "middle")
+      .attr("y", -40)
+      .style("font-size", "18px")
+      .style("fill", hoveredValue > 50 ? "#27ae60" : "#e74c3c")
+      .text("You are here");
+
+    // Add happy/neutral/sad face SVG
+    function getFaceSVG(value) {
+      if (value > 66) {
+        // Green happy face
+        return `M0,0
+          m-24,0
+          a24,24 0 1,0 48,0
+          a24,24 0 1,0 -48,0
+          M-10,-5 a5,5 0 1,0 10,0
+          M10,-5 a5,5 0 1,0 10,0
+          M-10,8 q10,10 20,0`;
+      } else if (value >= 33) {
+        // Yellow neutral face
+        return `M0,0
+          m-24,0
+          a24,24 0 1,0 48,0
+          a24,24 0 1,0 -48,0
+          M-10,-5 a5,5 0 1,0 10,0
+          M10,-5 a5,5 0 1,0 10,0
+          M-10,14 h20`;
+      } else {
+        // Red sad face
+        return `M0,0
+          m-24,0
+          a24,24 0 1,0 48,0
+          a24,24 0 1,0 -48,0
+          M-10,-5 a5,5 0 1,0 10,0
+          M10,-5 a5,5 0 1,0 10,0
+          M-10,18 q10,-10 20,0`;
+      }
+    }
+    function getFaceColor(value) {
+      if (value > 66) return '#27ae60'; // green
+      if (value >= 33) return '#f1c40f'; // yellow
+      return '#e74c3c'; // red
+    }
+    indicatorGroup.append("path")
+      .attr("d", getFaceSVG(hoveredValue))
+      .attr("fill", "#fff")
+      .attr("stroke", getFaceColor(hoveredValue))
+      .attr("stroke-width", 3)
+      .attr("transform", "scale(1.5)");
+
+    // Mouse move handler for hover indicator
     if (canVote) {
       svg.on("mousemove", function(event) {
         const [xPos] = d3.pointer(event);
-        const value = Math.round(x.invert(xPos));
-        
-        // Only show dot if within valid range
+        const value = Math.round(x.invert(xPos - margin.left));
         if (value >= 0 && value <= 100) {
-          starGroup
-            .attr("transform", `translate(${xPos},${height - margin.bottom - 4})`)
+          indicatorGroup
+            .attr("transform", `translate(${x(value) + margin.left},${height + margin.top})`)
             .attr("opacity", 1);
+          // Update face and label color
+          indicatorGroup.select("path")
+            .attr("d", getFaceSVG(value))
+            .attr("stroke", getFaceColor(value));
+          indicatorGroup.select("text")
+            .style("fill", getFaceColor(value));
         } else {
-          starGroup.attr("opacity", 0);
+          indicatorGroup.attr("opacity", 0);
         }
       })
       .on("mouseleave", function() {
-        starGroup.attr("opacity", 0);
+        indicatorGroup.attr("opacity", 0);
       });
     }
 
@@ -376,10 +417,10 @@
       svg.selectAll("rect")
         .data(data)
         .join("rect")
-        .attr("x", d => x(d.value) - 2)
-        .attr("y", d => y(d.count))
+        .attr("x", d => x(d.value) + margin.left - 2)
+        .attr("y", d => y(d.count) + margin.top)
         .attr("width", 4)
-        .attr("height", d => height - margin.bottom - y(d.count))
+        .attr("height", d => height - y(d.count))
         .attr("fill", d => {
           if (d.isUserVote) return "#ff4444";
           if (hoveredValue === d.value) return "#357abd";
@@ -457,7 +498,7 @@
       }
     }
 
-    // X axis (unchanged) -- always draw this
+    // X axis (always draw)
     const xAxis = d3.axisBottom(x)
       .tickValues([0, 50, 100])
       .tickFormat((d, i) => {
@@ -471,14 +512,26 @@
       });
 
     svg.append("g")
-      .attr("transform", `translate(0,${height - margin.bottom + 24})`)
+      .attr("transform", `translate(${margin.left},${height + margin.top})`)
       .call(xAxis)
       .call(g => g.selectAll("text")
-        .style("font-size", "1.1rem")
+        .style("font-size", "0.95rem")
         .style("font-weight", "600")
-        .attr("dy", "1.5em")
-        .attr("text-anchor", (d, i) => i === 0 ? "start" : i === 2 ? "end" : "middle")
-        .attr("x", (d, i) => i === 0 ? 8 : i === 2 ? -8 : 0)
+        .attr("dy", "0.8em")
+        .attr("text-anchor", "middle")
+        .each(function(d, i) {
+          let label = axisLabels && axisLabels.length === 3 ? axisLabels[i] ?? Math.round(d) : (i === 0 ? "the worst" : i === 1 ? "average" : i === 2 ? "the best" : Math.round(d));
+          if (typeof label === 'string' && label.length > 30) {
+            // Find nearest space before 30 chars
+            let splitIdx = label.lastIndexOf(' ', 30);
+            if (splitIdx === -1) splitIdx = 30;
+            const first = label.slice(0, splitIdx);
+            const second = label.slice(splitIdx).trim();
+            d3.select(this).text(null)
+              .append('tspan').attr('x', 0).attr('dy', '0em').text(first)
+              .append('tspan').attr('x', 0).attr('dy', '1.2em').text(second);
+          }
+        })
       );
 
     // Y axis (only label the top tick)
@@ -493,7 +546,7 @@
         });
 
       svg.append("g")
-        .attr("transform", `translate(${margin.left},0)`)
+        .attr("transform", `translate(${margin.left},${margin.top})`)
         .call(yAxis)
         .call(g => g.selectAll("text")
           .style("font-size", "1.1rem")
@@ -507,15 +560,15 @@
       // Draw mean line
       if (typeof meanValue === 'number') {
         svg.append('line')
-          .attr('x1', x(meanValue))
-          .attr('x2', x(meanValue))
+          .attr('x1', x(meanValue) + margin.left)
+          .attr('x2', x(meanValue) + margin.left)
           .attr('y1', margin.top)
-          .attr('y2', height - margin.bottom)
+          .attr('y2', height + margin.top)
           .attr('stroke', '#e67e22')
           .attr('stroke-width', 2)
           .attr('stroke-dasharray', '4,2');
         svg.append('text')
-          .attr('x', x(meanValue))
+          .attr('x', x(meanValue) + margin.left)
           .attr('y', margin.top - 18)
           .attr('text-anchor', 'middle')
           .style('font-size', '12px')
@@ -525,15 +578,15 @@
 
       // Draw midpoint line (x=50)
       svg.append('line')
-        .attr('x1', x(50))
-        .attr('x2', x(50))
+        .attr('x1', x(50) + margin.left)
+        .attr('x2', x(50) + margin.left)
         .attr('y1', margin.top)
-        .attr('y2', height - margin.bottom)
+        .attr('y2', height + margin.top)
         .attr('stroke', '#27ae60')
         .attr('stroke-width', 2)
         .attr('stroke-dasharray', '2,2');
       svg.append('text')
-        .attr('x', x(50))
+        .attr('x', x(50) + margin.left)
         .attr('y', margin.top - 18)
         .attr('text-anchor', 'middle')
         .style('font-size', '12px')
@@ -543,8 +596,8 @@
       // Draw distance indicator between mean and midpoint
       if (typeof meanValue === 'number') {
         svg.append('line')
-          .attr('x1', x(50))
-          .attr('x2', x(meanValue))
+          .attr('x1', x(50) + margin.left)
+          .attr('x2', x(meanValue) + margin.left)
           .attr('y1', margin.top - 8)
           .attr('y2', margin.top - 8)
           .attr('stroke', '#888')
@@ -611,16 +664,14 @@
     </div>
   </div>
 
-  {#if hasVoted}
-    <div class="stats-panel" transition:fade>
-      <p class="stats-summary">
-        Of the <strong>{responseCount}</strong> responses to this question, the average answer was <strong>{meanValue?.toFixed(1) ?? '0.0'}</strong>, meaning that {meanVsMidpointDescription.toLowerCase()} 
-        {#if userVote !== null}
-          You gave yourself a score of <strong>{userVote}</strong>, which is in the <strong>{userPercentileValue?.toFixed(1) ?? '0.0'}%</strong> percentile for all responses.
-        {/if}
-      </p>
-    </div>
-  {/if}
+  <div class="stats-panel{!hasVoted ? ' fuzzed' : ''}" transition:fade>
+    <p class="stats-summary">
+      Of the <strong>{responseCount}</strong> responses to this question, the average answer was <strong>{meanValue?.toFixed(1) ?? '0.0'}</strong>, meaning that {meanVsMidpointDescription.toLowerCase()} 
+      {#if userVote !== null}
+        You gave yourself a score of <strong>{userVote}</strong>, which is in the <strong>{userPercentileValue?.toFixed(1) ?? '0.0'}%</strong> percentile for all responses.
+      {/if}
+    </p>
+  </div>
 </div>
 
 <style>
@@ -738,6 +789,7 @@
     background: none;
     box-sizing: border-box;
     overflow: visible;
+    margin-bottom: 2.5rem;
   }
 
   .chart-wrapper {
@@ -755,10 +807,10 @@
     width: 100%;
     min-width: 250px;
     border-radius: 8px;
-    overflow: hidden;
+    overflow: visible;
     background: none;
     height: auto;
-    min-height: 300px;
+    min-height: 350px;
     display: block;
     margin-bottom: 1.5rem;
   }
@@ -776,6 +828,13 @@
     display: block;
     margin: 2.5rem auto 1.5rem auto;
     clear: both;
+    margin-top: 5rem;
+  }
+
+  .stats-panel.fuzzed {
+    filter: blur(4px) grayscale(0.7) opacity(0.7);
+    pointer-events: none;
+    user-select: none;
   }
 
   .stats-summary {

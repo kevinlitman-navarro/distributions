@@ -238,17 +238,18 @@
     const x = d3.scaleLinear()
       .domain([0, 100])
       .range([0, width]);
-    const y = d3.scaleLinear()
-      .domain([0, responseCount])
-      .range([height, 0]);
 
-    // Calculate histogram bin counts for y-axis
-    let valueGroups = d3.group(responses, d => d);
-    let maxCount = 0;
-    valueGroups.forEach((responses) => {
-      maxCount = Math.max(maxCount, responses.length);
-    });
-    if (maxCount === 0) maxCount = 1;
+    // Use d3.histogram to bin the data
+    const histogram = d3.histogram()
+      .domain([0, 100])
+      .thresholds(x.ticks(50)); // 50 bins for granularity
+    const bins = histogram(responses);
+    const maxBinCount = d3.max(bins, d => d.length) || 1;
+
+    // y scale: [0, maxBinCount] -> [height, 0]
+    const y = d3.scaleLinear()
+      .domain([0, maxBinCount])
+      .range([height, 0]);
 
     // Add hover indicator group
     const indicatorGroup = svg.append("g")
@@ -334,7 +335,7 @@
     if (canVote) {
       svg.on("click", async function(event) {
         const [xPos] = d3.pointer(event);
-        const value = Math.round(x.invert(xPos));
+        const value = Math.round(x.invert(xPos - margin.left));
         
         if (value >= 0 && value <= 100) {
           console.log('Setting user vote to:', value);
@@ -400,56 +401,34 @@
 
     // Show data if user has voted OR if there are responses
     if (hasVoted) {
-      // Group responses by value and calculate counts
-      valueGroups = d3.group(responses, d => d);
-      const data = [];
-      
-      // Create data array for bars
-      valueGroups.forEach((responses, value) => {
-        data.push({
-          value: Number(value),
-          count: responses.length,
-          isUserVote: Number(value) === userVote
-        });
-      });
-
-      // Draw bars
+      // Draw bars (after hasVoted)
       svg.selectAll("rect")
-        .data(data)
+        .data(bins)
         .join("rect")
-        .attr("x", d => x(d.value) + margin.left - 2)
-        .attr("y", d => y(d.count) + margin.top)
-        .attr("width", 4)
-        .attr("height", d => height - y(d.count))
-        .attr("fill", d => {
-          if (d.isUserVote) return "#ff4444";
-          if (hoveredValue === d.value) return "#357abd";
-          return "#4a90e2";
-        })
-        .attr("opacity", d => {
-          if (d.isUserVote) return 1;
-          if (hoveredValue === d.value) return 0.9;
-          return 0.7;
-        })
-        .style("cursor", "pointer")
-        .style("transition", "opacity 0.2s, fill 0.2s");
+        .attr("x", d => x(d.x0) + margin.left)
+        .attr("y", d => y(d.length) + margin.top)
+        .attr("width", d => x(d.x1) - x(d.x0) - 1)
+        .attr("height", d => height - y(d.length))
+        .attr("fill", d => d.some(v => v === userVote) ? "#ff4444" : "#4a90e2")
+        .attr("opacity", 0.7)
+        .style("cursor", "pointer");
 
       // Add hover events for highlighting
       if (canVote) {
         svg.selectAll("rect")
           .on("mouseover", function(event, d) {
-            if (!d.isUserVote) {
-              hoveredValue = d.value;
+            if (!d.some(v => v === userVote)) {
+              hoveredValue = d.x0 + (d.x1 - d.x0) / 2;
               svg.selectAll("rect")
                 .transition()
                 .duration(200)
                 .attr("fill", bar => {
-                  if (bar.isUserVote) return "#ff4444";
-                  return bar.value === d.value ? "#357abd" : "#4a90e2";
+                  if (bar.some(v => v === userVote)) return "#ff4444";
+                  return bar.x0 + (bar.x1 - bar.x0) / 2 === hoveredValue ? "#357abd" : "#4a90e2";
                 })
                 .attr("opacity", bar => {
-                  if (bar.isUserVote) return 1;
-                  return bar.value === d.value ? 0.9 : 0.7;
+                  if (bar.some(v => v === userVote)) return 1;
+                  return bar.x0 + (bar.x1 - bar.x0) / 2 === hoveredValue ? 0.9 : 0.7;
                 });
             }
           })
@@ -458,8 +437,8 @@
             svg.selectAll("rect")
               .transition()
               .duration(200)
-              .attr("fill", bar => bar.isUserVote ? "#ff4444" : "#4a90e2")
-              .attr("opacity", bar => bar.isUserVote ? 1 : 0.7);
+              .attr("fill", bar => bar.some(v => v === userVote) ? "#ff4444" : "#4a90e2")
+              .attr("opacity", bar => bar.some(v => v === userVote) ? 1 : 0.7);
           });
       }
 
@@ -469,17 +448,17 @@
         const stdDev = d3.deviation(responses);
         const normalData = normalDistribution(mean, stdDev, 100);
         const maxDensity = d3.max(normalData, d => d.y);
-        const scaleFactor = maxCount / maxDensity;
+        const scaleFactor = maxBinCount / maxDensity;
 
         const line = d3.line()
-          .x(d => x(d.x))
-          .y(d => y(d.y * scaleFactor))
+          .x(d => x(d.x) + margin.left)
+          .y(d => y(d.y * scaleFactor) + margin.top)
           .curve(d3.curveBasis);
 
         const area = d3.area()
-          .x(d => x(d.x))
-          .y0(height - margin.bottom)
-          .y1(d => y(d.y * scaleFactor))
+          .x(d => x(d.x) + margin.left)
+          .y0(y(0) + margin.top)
+          .y1(d => y(d.y * scaleFactor) + margin.top)
           .curve(d3.curveBasis);
 
         svg.append("path")
@@ -539,8 +518,8 @@
       const yAxis = d3.axisLeft(y)
         .ticks(5)
         .tickFormat((d, i, arr) => {
-          if (d === maxCount) {
-            return `${maxCount} responses`;
+          if (d === maxBinCount) {
+            return `${maxBinCount} responses`;
           }
           return '';
         });
@@ -567,16 +546,30 @@
           .attr('stroke', '#e67e22')
           .attr('stroke-width', 2)
           .attr('stroke-dasharray', '4,2');
-        svg.append('text')
-          .attr('x', x(meanValue) + margin.left)
-          .attr('y', margin.top - 18)
+
+        // Add mean label with background
+        const meanLabel = svg.append('g')
+          .attr('transform', `translate(${x(meanValue) + margin.left},${margin.top - 25})`);
+
+        meanLabel.append('rect')
+          .attr('x', -40)
+          .attr('y', -20)
+          .attr('width', 80)
+          .attr('height', 24)
+          .attr('rx', 12)
+          .attr('fill', '#e67e22')
+          .attr('opacity', 0.15);
+
+        meanLabel.append('text')
           .attr('text-anchor', 'middle')
-          .style('font-size', '12px')
+          .attr('dy', -5)
+          .style('font-size', '14px')
+          .style('font-weight', '600')
           .style('fill', '#e67e22')
           .text('Mean');
       }
 
-      // Draw midpoint line (x=50)
+      // Draw midpoint line
       svg.append('line')
         .attr('x1', x(50) + margin.left)
         .attr('x2', x(50) + margin.left)
@@ -585,37 +578,52 @@
         .attr('stroke', '#27ae60')
         .attr('stroke-width', 2)
         .attr('stroke-dasharray', '2,2');
-      svg.append('text')
-        .attr('x', x(50) + margin.left)
-        .attr('y', margin.top - 18)
+
+      // Add midpoint label with background
+      const midpointLabel = svg.append('g')
+        .attr('transform', `translate(${x(50) + margin.left},${margin.top - 25})`);
+
+      midpointLabel.append('rect')
+        .attr('x', -50)
+        .attr('y', -20)
+        .attr('width', 100)
+        .attr('height', 24)
+        .attr('rx', 12)
+        .attr('fill', '#27ae60')
+        .attr('opacity', 0.15);
+
+      midpointLabel.append('text')
         .attr('text-anchor', 'middle')
-        .style('font-size', '12px')
+        .attr('dy', -5)
+        .style('font-size', '14px')
+        .style('font-weight', '600')
         .style('fill', '#27ae60')
         .text('Midpoint');
 
       // Draw distance indicator between mean and midpoint
       if (typeof meanValue === 'number') {
-        svg.append('line')
-          .attr('x1', x(50) + margin.left)
-          .attr('x2', x(meanValue) + margin.left)
-          .attr('y1', margin.top - 8)
-          .attr('y2', margin.top - 8)
-          .attr('stroke', '#888')
-          .attr('stroke-width', 2)
-          .attr('marker-start', 'url(#arrowhead)')
-          .attr('marker-end', 'url(#arrowhead)');
         // Add arrowhead marker definition
         svg.append('defs').append('marker')
           .attr('id', 'arrowhead')
           .attr('viewBox', '0 0 10 10')
           .attr('refX', 5)
           .attr('refY', 5)
-          .attr('markerWidth', 6)
-          .attr('markerHeight', 6)
+          .attr('markerWidth', 8)
+          .attr('markerHeight', 8)
           .attr('orient', 'auto')
           .append('path')
           .attr('d', 'M 0 0 L 10 5 L 0 10 z')
-          .attr('fill', '#888');
+          .attr('fill', '#666');
+
+        svg.append('line')
+          .attr('x1', x(50) + margin.left)
+          .attr('x2', x(meanValue) + margin.left)
+          .attr('y1', margin.top - 8)
+          .attr('y2', margin.top - 8)
+          .attr('stroke', '#888')
+          .attr('stroke-width', 3)
+          .attr('marker-start', 'url(#arrowhead)')
+          .attr('marker-end', 'url(#arrowhead)');
       }
     }
   }
@@ -675,6 +683,10 @@
 </div>
 
 <style>
+  :global(body) {
+    background: #f5ede3;
+    color: #222;
+  }
   :global(.histogram-container),
   :global(.content-wrapper),
   :global(.chart-wrapper),
@@ -758,6 +770,8 @@
   }
   .comparison-select option {
     text-transform: lowercase;
+    color: #1a202c;
+    background: white;
   }
   .question-main {
     font-size: 1.1rem;

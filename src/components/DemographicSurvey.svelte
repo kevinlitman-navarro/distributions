@@ -1,9 +1,10 @@
 <script>
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   const dispatch = createEventDispatcher();
 
   let age = $state('');
   let sex = $state('');
+  let submitted = $state(false);
 
   const ageOptions = [
     { value: '18-24', label: '18-24' },
@@ -19,6 +20,18 @@
     { value: 'female', label: 'Female' },
     { value: 'neither', label: 'Neither' }
   ];
+
+  onMount(() => {
+    const stored = localStorage.getItem('completeResponseData');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed.demographics && parsed.demographics.age && parsed.demographics.sex) {
+          submitted = true;
+        }
+      } catch (e) {}
+    }
+  });
 
   function handleSubmit() {
     // Get all responses from localStorage
@@ -37,46 +50,50 @@
 
     // Save to localStorage
     localStorage.setItem('completeResponseData', JSON.stringify(responseData));
-    
+    submitted = true;
     // Dispatch event to parent
     dispatch('complete', responseData);
   }
 </script>
 
 <div class="demographic-survey">
-  <h2>Almost done! Please tell us a bit about yourself</h2>
-  
-  <form on:submit|preventDefault={handleSubmit}>
-    <div class="form-group">
-      <label for="age">What is your age? (optional)</label>
-      <select 
-        id="age" 
-        bind:value={age}
-      >
-        <option value="">Select age range</option>
-        {#each ageOptions as option}
-          <option value={option.value}>{option.label}</option>
-        {/each}
-      </select>
-    </div>
+  {#if !submitted}
+    <form on:submit|preventDefault={handleSubmit}>
+      <div class="form-group">
+        <label for="age">What is your age?</label>
+        <select 
+          id="age" 
+          bind:value={age}
+        >
+          <option value="">Select age range</option>
+          {#each ageOptions as option}
+            <option value={option.value}>{option.label}</option>
+          {/each}
+        </select>
+      </div>
 
-    <div class="form-group">
-      <label for="sex">What is your sex? (optional)</label>
-      <select 
-        id="sex" 
-        bind:value={sex}
-      >
-        <option value="">Select sex</option>
-        {#each sexOptions as option}
-          <option value={option.value}>{option.label}</option>
-        {/each}
-      </select>
-    </div>
+      <div class="form-group">
+        <label for="sex">What is your sex?</label>
+        <select 
+          id="sex" 
+          bind:value={sex}
+        >
+          <option value="">Select sex</option>
+          {#each sexOptions as option}
+            <option value={option.value}>{option.label}</option>
+          {/each}
+        </select>
+      </div>
 
-    <button type="submit">
-      Submit
-    </button>
-  </form>
+      <button type="submit">
+        Submit
+      </button>
+    </form>
+  {:else}
+    <div class="thank-you-message">
+      <h2>Thank you for submitting your demographic information!</h2>
+    </div>
+  {/if}
 </div>
 
 <style>

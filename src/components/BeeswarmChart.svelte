@@ -106,7 +106,7 @@
 
 	// --- Stats logic from InteractiveHistogram ---
 	// Only show stats after voting (except for examples)
-	let statsData = $derived(hasVoted || isExample ? responses : []);
+	let statsData = $derived(hasVoted ? responses : []);
 
 	let numericResponses = $derived(statsData.map((r) => Number(r)));
 	let responseCount = $derived(numericResponses.length);
@@ -278,8 +278,8 @@
 
 		// Determine what data to show based on voting state
 		let dataToShow = [];
-		if (hasVoted || isExample) {
-			// Show all responses after voting or for examples
+		if (hasVoted) {
+			// Show all responses after voting
 			dataToShow = responses;
 		} else if (userVote !== null) {
 			// Show only user's vote before seeing other responses
@@ -588,14 +588,16 @@
 
 <div class="beeswarm-container">
 	<div class="question-row">
-		<span class="question-intro">Compared to</span>
-		<select bind:value={selectedComparisonGroup} class="comparison-select">
-			{#each comparisonGroups as group}
-				<option value={group.value}>{group.label}</option>
-			{/each}
-		</select>,
+		{#if !isExample}
+			<span class="question-intro">Compared to</span>
+			<select bind:value={selectedComparisonGroup} class="comparison-select">
+				{#each comparisonGroups as group}
+					<option value={group.value}>{group.label}</option>
+				{/each}
+			</select>,
+		{/if}
 		<span class="question-main"
-			>{question.charAt(0).toLowerCase() + question.slice(1)}</span
+			>{isExample ? question : question.charAt(0).toLowerCase() + question.slice(1)}</span
 		>
 		{#if !isExample}
 			<span class="question-number"
@@ -604,17 +606,13 @@
 		{/if}
 	</div>
 
-	{#if isExample}
+	{#if isExample && !hasVoted}
 		<div class="subhead">
-			{#if hasVoted}
-				You already voted ({userVote}/100)
-			{:else}
-				Click anywhere to rate yourself
-			{/if}
+			Click anywhere to rate yourself
 		</div>
 	{/if}
 
-	{#if !hasVoted && canVote}
+	{#if !hasVoted && canVote && isExample}
 		<div class="chart-message">
 			Click anywhere on the chart below to rate yourself and see how you
 			compare!

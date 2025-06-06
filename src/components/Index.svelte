@@ -112,14 +112,12 @@
 			— esteemed readers of The Pudding.
 		</p>
 
-		<div class="example-histogram">
-			<BeeswarmChart 
-				question={exampleQuestion.question}
-				dataFile={exampleQuestion.dataFile}
-				axisLabels={exampleQuestion.axisLabels}
-				isExample={true}
-			/>
-		</div>
+		<BeeswarmChart 
+			question={exampleQuestion.question}
+			dataFile={exampleQuestion.dataFile}
+			axisLabels={exampleQuestion.axisLabels}
+			isExample={true}
+		/>
 
 		<p>
 			There you have it! Let's see what else you guys are wrong about.
@@ -177,7 +175,6 @@
 	}
 
 	.context {
-		max-width: 800px;
 		margin: 0 auto 4rem auto;
 		text-align: center;
 		color: #4a5568;
@@ -205,18 +202,7 @@
 		text-decoration: underline;
 	}
 
-	.example-histogram {
-		margin: 3rem 0;
-		padding: 2rem;
-		background: white;
-		border-radius: 12px;
-		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-		transition: transform 0.2s;
-	}
 
-	.example-histogram:hover {
-		transform: translateY(-2px);
-	}
 
 	.histograms {
 		display: flex;
@@ -306,10 +292,6 @@
 			margin-bottom: 2rem;
 		}
 
-		.example-histogram {
-			margin: 2rem 0;
-			padding: 1rem;
-		}
 
 		.demographic-section {
 			padding: 2rem;

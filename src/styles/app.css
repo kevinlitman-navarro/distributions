@@ -82,3 +82,8 @@ svg {
 	width: 100%;
 	height: auto;
 }
+
+/* Ensure body has transparent background for gradient overlay */
+body {
+	background: transparent;
+}

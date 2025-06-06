@@ -1,7 +1,7 @@
 <script>
 	import { getContext } from "svelte";
 	import Footer from "$components/Footer.svelte";
-	import InteractiveHistogram from "./InteractiveHistogram.svelte";
+	import BeeswarmChart from "./BeeswarmChart.svelte";
 	import DemographicSurvey from './DemographicSurvey.svelte';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
@@ -113,7 +113,7 @@
 		</p>
 
 		<div class="example-histogram">
-			<InteractiveHistogram 
+			<BeeswarmChart 
 				question={exampleQuestion.question}
 				dataFile={exampleQuestion.dataFile}
 				axisLabels={exampleQuestion.axisLabels}
@@ -128,7 +128,7 @@
 
 	<div class="histograms">
 		{#each questions as question, i}
-			<InteractiveHistogram
+			<BeeswarmChart
 				question={question.question}
 				dataFile={question.dataFile}
 				questionNumber={i + 1}
@@ -161,8 +161,10 @@
 		max-width: 1200px;
 		margin: 0 auto;
 		padding: 2rem;
-		background: linear-gradient(to bottom, #f8f9fa, #ffffff);
+		background: transparent;
 		min-height: 100vh;
+		position: relative;
+		z-index: 1;
 	}
 
 	h1 {
@@ -219,7 +221,7 @@
 	.histograms {
 		display: flex;
 		flex-direction: column;
-		gap: 4rem;
+		gap: 2rem;
 		width: 100%;
 		max-width: 1200px;
 		margin: 0 auto;

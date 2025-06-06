@@ -32,6 +32,8 @@
 	let hoveredValue = $state(null);
 	let dotRadius = 3;
 	let beeswarmPoints = [];
+	let isVoting = $state(false);
+	let isLoadingComparison = $state(false);
 
 	const comparisonGroups = [
 		{ value: "friends", label: "your friends" },
@@ -40,7 +42,7 @@
 	];
 
 	// Update the derived state for whether voting is allowed
-	let canVote = $derived((!hasResponded || isExample) && !hasVoted);
+	let canVote = $derived((!hasResponded || isExample) && !hasVoted && !isVoting && !isLoadingComparison);
 
 	// Function to get the current data file based on comparison group
 	function getCurrentDataFile() {
@@ -452,13 +454,24 @@
 	}
 
 	async function handleVote(event) {
-		const [xPos] = d3.pointer(event);
-		let value = Math.round(xScale.invert(xPos));
-		value = Math.max(0, Math.min(100, value));
-
-		if (!canVote) return;
+		// Prevent multiple simultaneous votes
+		if (!canVote || isVoting) return;
+		
+		isVoting = true;
 
 		try {
+			const [xPos] = d3.pointer(event);
+			let value = Math.round(xScale.invert(xPos));
+			value = Math.max(0, Math.min(100, value));
+
+			// Store old state for potential rollback
+			const oldState = {
+				userVote,
+				hasVoted,
+				responses: [...responses]
+			};
+
+			// Update state optimistically
 			userVote = value;
 			hasVoted = true;
 			responses = [...responses, value];
@@ -466,14 +479,24 @@
 			const type = getCurrentDataFile().replace("_responses.json", "");
 			const voteKey = getVoteKey();
 
-			// Save to server
-			await fetch(`/api/responses?type=${type}`, {
+			// First save the vote to the server
+			const saveResult = await fetch(`/api/responses?type=${type}`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(responses)
 			});
 
-			// Save user's vote
+			if (!saveResult.ok) {
+				throw new Error(`Failed to save response: ${saveResult.status}`);
+			}
+
+			// Then fetch the updated data after the save is complete
+			const refreshResult = await fetch(`/api/responses?type=${type}`);
+			if (refreshResult.ok) {
+				responses = await refreshResult.json();
+			}
+
+			// Save user's vote to localStorage
 			const userVotes = JSON.parse(localStorage.getItem("userVotes") || "{}");
 			userVotes[voteKey] = value;
 			localStorage.setItem("userVotes", JSON.stringify(userVotes));
@@ -492,18 +515,16 @@
 				}
 			}
 
-			// Refresh responses
-			const response = await fetch(`/api/responses?type=${type}`);
-			responses = await response.json();
-
 			drawChart();
 			dispatch("vote", { value });
 		} catch (error) {
 			console.error("Error saving response:", error);
-			// Revert state on error
-			userVote = null;
-			hasVoted = false;
-			responses = responses.slice(0, -1);
+			// Revert to old state on error
+			userVote = oldState.userVote;
+			hasVoted = oldState.hasVoted;
+			responses = oldState.responses;
+		} finally {
+			isVoting = false;
 		}
 	}
 
@@ -547,8 +568,19 @@
 	});
 
 	// Watch for changes in comparison group
+	let lastLoadedGroup = $state(null);
 	$effect(() => {
-		if (selectedComparisonGroup) {
+		if (selectedComparisonGroup && selectedComparisonGroup !== lastLoadedGroup) {
+			loadComparisonGroupData();
+		}
+	});
+
+	async function loadComparisonGroupData() {
+		if (isLoadingComparison || isVoting) return;
+		
+		isLoadingComparison = true;
+		
+		try {
 			const type = getCurrentDataFile().replace("_responses.json", "");
 			console.log(
 				"Loading responses for comparison group:",
@@ -556,28 +588,29 @@
 				"type:",
 				type
 			);
-			fetch(`/api/responses?type=${type}`)
-				.then((response) => {
-					if (!response.ok) {
-						throw new Error(
-							`Failed to load responses: ${response.status} ${response.statusText}`
-						);
-					}
-					return response.json();
-				})
-				.then((data) => {
-					console.log("Loaded responses for comparison group:", data);
-					responses = Array.isArray(data) ? data : [];
-					checkVoteStatus();
-					drawChart();
-				})
-				.catch((error) => {
-					console.error("Error loading responses:", error);
-					responses = [];
-					drawChart();
-				});
+			
+			const response = await fetch(`/api/responses?type=${type}`);
+			if (!response.ok) {
+				throw new Error(
+					`Failed to load responses: ${response.status} ${response.statusText}`
+				);
+			}
+			
+			const data = await response.json();
+			console.log("Loaded responses for comparison group:", data);
+			responses = Array.isArray(data) ? data : [];
+			lastLoadedGroup = selectedComparisonGroup; // Update tracking variable
+			checkVoteStatus();
+			drawChart();
+		} catch (error) {
+			console.error("Error loading responses:", error);
+			responses = [];
+			lastLoadedGroup = selectedComparisonGroup; // Update tracking variable even on error
+			drawChart();
+		} finally {
+			isLoadingComparison = false;
 		}
-	});
+	}
 
 	$effect(() => {
 		if (responses && canvas && svgOverlay) {
